@@ -233,7 +233,7 @@ jobs:
 
       - name: 🎊 创建 GitHub Release
         if: github.event.inputs.dry_run != 'true'
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@v3
         with:
           tag_name: ${{ env.NEW_VERSION }}
           name: Release ${{ env.NEW_VERSION }}

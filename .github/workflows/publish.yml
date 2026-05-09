@@ -1,0 +1,287 @@
+# 发布 n8n 社区节点包到 npm（附带 provenance 声明）。
+#
+# 自 2026 年 5 月 1 日起，n8n 要求所有社区节点必须通过 GitHub Actions 发布，
+# 并附带 npm provenance 声明。此工作流满足该要求。Provenance 可让任何人通过
+# 密码学验证，确认某个包确实由此工作流、此仓库和此 commit 构建。
+#
+# ─── 前提条件 ──────────────────────────────────────────────────────────────────
+#
+# 需要 @n8n/node-cli ≥ 0.23.0，更早版本不支持 CI 中 `npm run release` 传递
+# 的 provenance 标志，发布步骤会失败。检查当前版本：
+#
+#   npm list @n8n/node-cli
+#
+# 升级方法：
+#
+#   npm install --save-dev @n8n/node-cli@latest
+#
+# ─── 一次性配置（OIDC 可信任发布） ─────────────────────────────────────────────
+#
+# 本仓库使用 OIDC Trusted Publishing（推荐，无需长期密钥）：
+#   1. 登录 npmjs.com，打开包设置页面。
+#   2. 在 "Publish access" → "Trusted Publishers" 下点击 "Add a publisher"。
+#   3. 选择 GitHub Actions，填写：
+#        Repository owner: luka-n8n-nodes
+#        Repository name:  n8n-nodes-moka-people
+#        Workflow name:    publish.yml
+#        Environment:      （留空，除非使用了 GitHub Environments）
+#   4. 不需要在仓库中设置 NPM_TOKEN。GitHub 的 OIDC token 会自动用于认证。
+#
+# 备用方案 — npm Automation Token（回退）：
+#   1. 在 npmjs.com：Access Tokens → Generate New Token → Granular Access Token。
+#      作用域为此包，权限为 "Read and write"。
+#   2. 在 GitHub：Settings → Secrets and variables → Actions → New secret。
+#      命名为 NPM_TOKEN 并粘贴 token 值。
+#
+# 两种方案都支持 --provenance。Provenance 由 GitHub 的 OIDC 基础设施签名，
+# 与 npm 认证方式无关。
+#
+# ─── 标签约定 ──────────────────────────────────────────────────────────────────
+#
+# 本工作流在匹配 "v*.*.*" 的标签推送时触发（如 v0.2.0）。
+#
+# ─── 发布流程 ──────────────────────────────────────────────────────────────────
+#
+# 方式一（推荐 - 本地交互式发布）：
+#
+#   npm run release
+#
+#   此命令会执行 lint、build，提示选择版本号，更新 changelog，commit、tag
+#   并推送 — 由此触发本工作流自动发布到 npm。
+#
+# 方式二（GitHub UI 手动触发）：
+#
+#   在 Actions 页面手动触发 workflow_dispatch，选择版本类型即可。
+
+name: 🚀 Publish
+
+on:
+  push:
+    tags:
+      - 'v*.*.*'
+  workflow_dispatch:
+    inputs:
+      version_type:
+        description: '版本类型'
+        required: true
+        default: 'patch'
+        type: choice
+        options:
+          - patch   # 修复版本 1.0.0 -> 1.0.1
+          - minor   # 次要版本 1.0.0 -> 1.1.0
+          - major   # 主要版本 1.0.0 -> 2.0.0
+      dry_run:
+        description: '仅测试，不实际发布'
+        required: false
+        default: false
+        type: boolean
+
+concurrency:
+  group: publish-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    name: Publish to npm
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: write
+      id-token: write
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 'lts/*'
+          registry-url: 'https://registry.npmjs.org'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      # ===== 标签触发：使用 npm run release（官方推荐流程） =====
+      - name: 🏷️ 获取版本号（标签触发）
+        if: github.event_name == 'push'
+        run: |
+          echo "NEW_VERSION=${GITHUB_REF#refs/tags/}" >> $GITHUB_ENV
+          echo "📌 发布版本: ${GITHUB_REF#refs/tags/}"
+
+      - name: 🚀 Release（标签触发）
+        if: github.event_name == 'push'
+        run: npm run release
+
+      # ===== 手动触发：交互式版本管理 + 显式发布 =====
+      - name: 🔐 配置 Git
+        if: github.event_name == 'workflow_dispatch'
+        run: |
+          git config --local user.email "luka.cat.mimi@gmail.com"
+          git config --local user.name "luka-cat"
+
+      - name: 📝 更新版本号（手动触发）
+        if: github.event_name == 'workflow_dispatch' && github.event.inputs.dry_run != 'true'
+        run: |
+          NEW_VERSION=$(npm version ${{ github.event.inputs.version_type }} --no-git-tag-version)
+          echo "NEW_VERSION=$NEW_VERSION" >> $GITHUB_ENV
+          echo "📌 新版本: $NEW_VERSION"
+
+      - name: 🏷️ 获取版本号（Dry Run）
+        if: github.event_name == 'workflow_dispatch' && github.event.inputs.dry_run == 'true'
+        run: |
+          CURRENT_VERSION=$(node -p "require('./package.json').version")
+          echo "NEW_VERSION=v$CURRENT_VERSION" >> $GITHUB_ENV
+          echo "🧪 Dry Run 模式 - 当前版本: v$CURRENT_VERSION"
+
+      - name: 🏗️ Lint & Build（手动触发）
+        if: github.event_name == 'workflow_dispatch'
+        run: |
+          npm run lint || true
+          npm run build
+
+      - name: ✅ 验证构建产物（手动触发）
+        if: github.event_name == 'workflow_dispatch'
+        run: |
+          echo "📂 检查 dist 目录内容:"
+          ls -la dist/
+
+          echo ""
+          echo "✅ 验证关键文件:"
+          test -f dist/nodes/MokaPeople/MokaPeople.node.js && echo "✅ MokaPeople.node.js"
+          test -f dist/credentials/MokaPeopleApi.credentials.js && echo "✅ MokaPeopleApi.credentials.js"
+          test -f dist/package.json && echo "✅ dist/package.json"
+
+          echo ""
+          echo "📊 包大小:"
+          du -sh dist/
+
+      - name: 🚀 发布到 NPM（手动触发）
+        if: github.event_name == 'workflow_dispatch' && github.event.inputs.dry_run != 'true'
+        run: npm publish --provenance --access public
+
+      - name: 🧪 模拟发布（Dry Run）
+        if: github.event_name == 'workflow_dispatch' && github.event.inputs.dry_run == 'true'
+        run: npm publish --dry-run --provenance --access public
+
+      - name: 📤 提交版本变更（手动触发）
+        if: github.event_name == 'workflow_dispatch' && github.event.inputs.dry_run != 'true'
+        run: |
+          git add package.json package-lock.json
+          git commit -m "chore: release ${{ env.NEW_VERSION }}"
+          git tag ${{ env.NEW_VERSION }} -m "Release ${{ env.NEW_VERSION }}"
+          git push origin HEAD:main --follow-tags
+
+      # ===== 公共步骤：GitHub Release + 通知 =====
+      - name: 📋 生成变更日志
+        if: github.event.inputs.dry_run != 'true'
+        id: changelog
+        run: |
+          echo "📝 生成变更日志..."
+
+          LAST_TAG=$(git describe --tags --abbrev=0 HEAD^ 2>/dev/null || echo "")
+
+          if [ -n "$LAST_TAG" ]; then
+            echo "📊 对比版本: $LAST_TAG -> ${{ env.NEW_VERSION }}"
+
+            FEATURES=$(git log $LAST_TAG..HEAD --pretty=format:"%s" --no-merges | grep -E "^feat|^feature" | sed 's/^/- ✨ /' || echo "")
+            FIXES=$(git log $LAST_TAG..HEAD --pretty=format:"%s" --no-merges | grep -E "^fix|^bugfix" | sed 's/^/- 🐛 /' || echo "")
+            DOCS=$(git log $LAST_TAG..HEAD --pretty=format:"%s" --no-merges | grep "^docs" | sed 's/^/- 📚 /' || echo "")
+            CHORES=$(git log $LAST_TAG..HEAD --pretty=format:"%s" --no-merges | grep "^chore" | sed 's/^/- 🔧 /' || echo "")
+
+            CHANGELOG="## 🎉 版本 ${{ env.NEW_VERSION }}
+
+          ### ✨ 新特性
+          ${FEATURES:-无}
+
+          ### 🐛 问题修复
+          ${FIXES:-无}
+
+          ### 📚 文档更新
+          ${DOCS:-无}
+
+          ### 🔧 其他变更
+          ${CHORES:-无}"
+          else
+            CHANGELOG="## 🎉 首次发布 ${{ env.NEW_VERSION }}
+
+          ### ✨ 功能特性
+          - 🎯 支持 Moka People HCM 人事系统 API
+          - 👥 支持员工任职数据、待入职员工数据查询
+          - ➕ 支持新增员工、更新员工（含批量附件）
+          - 📎 支持通用附件上传
+          - ✏️ 支持员工基本信息回写"
+          fi
+
+          CHANGELOG="$CHANGELOG
+
+          ### 📦 安装方式
+          \`\`\`bash
+          npm install @luka-cat-mimi/n8n-nodes-moka-people
+          \`\`\`
+
+          ### 🔗 相关链接
+          - 📖 [使用文档](https://github.com/luka-n8n-nodes/n8n-nodes-moka-people#readme)
+          - 📦 [NPM 包](https://www.npmjs.com/package/@luka-cat-mimi/n8n-nodes-moka-people)"
+
+          echo "CHANGELOG<<EOF" >> $GITHUB_OUTPUT
+          echo "$CHANGELOG" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+
+      - name: 🎊 创建 GitHub Release
+        if: github.event.inputs.dry_run != 'true'
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ env.NEW_VERSION }}
+          name: Release ${{ env.NEW_VERSION }}
+          body: ${{ steps.changelog.outputs.CHANGELOG }}
+          draft: false
+          prerelease: false
+          generate_release_notes: true
+          make_latest: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: 🎉 发布成功通知
+        if: github.event.inputs.dry_run != 'true'
+        run: |
+          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+          echo "🎉 发布成功！"
+          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+          echo ""
+          echo "📦 版本: ${{ env.NEW_VERSION }}"
+          echo "🔗 NPM: https://www.npmjs.com/package/@luka-cat-mimi/n8n-nodes-moka-people"
+          echo ""
+          echo "📋 安装命令:"
+          echo "npm install @luka-cat-mimi/n8n-nodes-moka-people"
+          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+
+      - name: 🧪 Dry Run 完成通知
+        if: github.event.inputs.dry_run == 'true'
+        run: |
+          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+          echo "🧪 Dry Run 测试完成"
+          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+          echo ""
+          echo "✅ 所有检查通过，可以正式发布"
+          echo "📦 当前版本: ${{ env.NEW_VERSION }}"
+          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+
+      - name: ❌ 发布失败通知
+        if: failure()
+        run: |
+          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+          echo "❌ 发布失败"
+          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+          echo ""
+          echo "请检查以下内容:"
+          echo "1. npm Trusted Publisher 是否配置正确"
+          echo "2. GitHub Token 权限是否足够（需要 id-token: write）"
+          echo "3. 代码是否通过 lint 检查"
+          echo "4. 构建是否成功"
+          echo ""
+          echo "查看详细日志: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"

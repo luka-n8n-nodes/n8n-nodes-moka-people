@@ -1,0 +1,6 @@
+node_modules/
+dist/
+.idea/
+
+# 调试脚本可能含 apiKey / privateKey，禁止提交
+requestDemo.js

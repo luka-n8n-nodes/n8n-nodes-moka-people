@@ -45,8 +45,7 @@ export const paginationOptions = {
 				returnAll: [false],
 			},
 		},
-		description:
-			'返回结果的最大条数，同时充当单页 pageSize。Return All 模式不使用此字段，自动分页固定 pageSize=200',
+		description: 'Max number of results to return',
 	}),
 };
 

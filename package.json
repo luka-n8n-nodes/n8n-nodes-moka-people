@@ -1,6 +1,6 @@
 {
   "name": "@luka-cat-mimi/n8n-nodes-moka-people",
-  "version": "0.0.1",
+  "version": "0.0.2",
   "description": "Moka People N8N 集成插件",
   "keywords": [
     "n8n",

@@ -84,6 +84,7 @@ jobs:
   publish:
     name: Publish to npm
     runs-on: ubuntu-latest
+    environment: 正式环境
 
     permissions:
       contents: write

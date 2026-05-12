@@ -11,7 +11,7 @@ export class MokaPeopleApi implements ICredentialType {
 	name = 'mokaPeopleApi';
 	displayName = 'Moka People API';
 	documentationUrl = 'https://people.mokahr.com/docs/api/view/v1.html';
-	icon = 'file:icon.svg' as const;
+	icon = 'file:../nodes/MokaPeople/icon.svg' as const;
 	properties: INodeProperties[] = [
 		{
 			displayName: 'API 基础地址',

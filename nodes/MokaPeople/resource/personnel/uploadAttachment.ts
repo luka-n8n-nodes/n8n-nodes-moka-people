@@ -1,7 +1,7 @@
 import { IDataObject, INodeProperties } from 'n8n-workflow';
 import FormData from 'form-data';
 import { ResourceOperations } from '../../../help/type/IResource';
-import MokaRequest from '../../../help/utils/MokaRequest';
+import { mokaRequest } from '../../../help/utils/MokaRequest';
 import { timeoutOption } from '../../../help/utils/sharedOptions';
 
 /**
@@ -85,12 +85,12 @@ const operation: ResourceOperations = {
 			contentType: mimeType,
 		});
 
-		const data = await MokaRequest.call.call(this, {
+		const data = await mokaRequest(this, {
 			method: 'POST',
 			path: PATH,
-			rawData: form,
-			extraHeaders: form.getHeaders(),
+			formData: form,
 			apiCode,
+			itemIndex: index,
 			timeout,
 		});
 

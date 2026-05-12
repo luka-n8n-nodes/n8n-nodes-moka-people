@@ -1,6 +1,6 @@
 import { IDataObject, INodeProperties } from 'n8n-workflow';
 import { ResourceOperations } from '../../../help/type/IResource';
-import MokaRequest from '../../../help/utils/MokaRequest';
+import { mokaRequest } from '../../../help/utils/MokaRequest';
 import { parseJsonArray, timeoutOption } from '../../../help/utils/sharedOptions';
 
 /**
@@ -90,11 +90,12 @@ const operation: ResourceOperations = {
 		const rawData = this.getNodeParameter('data', index, '') as unknown;
 		const dataArray = parseJsonArray(rawData);
 
-		const data = await MokaRequest.call.call(this, {
+		const data = await mokaRequest(this, {
 			method: 'POST',
 			path: PATH,
 			body: { data: dataArray } as IDataObject,
 			apiCode,
+			itemIndex: index,
 			timeout,
 		});
 

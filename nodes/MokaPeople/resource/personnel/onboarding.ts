@@ -1,6 +1,6 @@
 import { IDataObject, INodeProperties } from 'n8n-workflow';
 import { ResourceOperations } from '../../../help/type/IResource';
-import MokaRequest from '../../../help/utils/MokaRequest';
+import { mokaRequest } from '../../../help/utils/MokaRequest';
 import {
 	batchingOption,
 	paginationOptions,
@@ -228,11 +228,12 @@ const operation: ResourceOperations = {
 		});
 
 		const requestPage = async (pageSize: number, pageNum: number): Promise<IOnboardingData> => {
-			const data = await MokaRequest.call.call(this, {
+			const data = await mokaRequest(this, {
 				method: 'POST',
 				path: PATH,
 				body: buildBody(pageSize, pageNum),
 				apiCode,
+				itemIndex: index,
 				timeout,
 			});
 			return data as unknown as IOnboardingData;

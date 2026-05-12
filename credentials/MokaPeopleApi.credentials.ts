@@ -4,7 +4,8 @@ import { ICredentialType, INodeProperties } from 'n8n-workflow';
  * Moka People API 凭证。
  *
  * 注意：本凭证只承担「保存敏感信息」的角色，不再使用 n8n 的 `authenticate` 自动注入。
- * Authorization / Query 签名等所有请求构造都由 `MokaRequest`（基于 axios）自行处理，
+ * Authorization / Query 签名等所有请求构造都由 `MokaRequest`
+ *（基于 n8n 内置 `this.helpers.httpRequest`）自行处理，
  * 这样可以与本仓库内的 `requestDemo.js` 行为完全一致，避免 n8n 凭证模板的隐式行为。
  */
 export class MokaPeopleApi implements ICredentialType {

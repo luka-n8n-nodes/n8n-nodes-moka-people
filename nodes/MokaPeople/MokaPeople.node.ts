@@ -4,6 +4,8 @@ import {
 	INodeExecutionData,
 	INodeType,
 	INodeTypeDescription,
+	JsonObject,
+	NodeApiError,
 	NodeConnectionTypes,
 	NodeOperationError,
 } from 'n8n-workflow';
@@ -72,7 +74,12 @@ export class MokaPeople implements INodeType {
 					returnData[0].push(...errorData);
 					continue;
 				}
-				throw error;
+				if (error instanceof NodeApiError || error instanceof NodeOperationError) {
+					throw error; // eslint-disable-line @n8n/community-nodes/require-node-api-error
+				}
+				throw new NodeApiError(this.getNode(), (error ?? {}) as JsonObject, {
+					message: error instanceof Error ? error.message : String(error),
+				});
 			}
 		}
 

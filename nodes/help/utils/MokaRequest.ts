@@ -63,7 +63,7 @@ function buildBasicAuth(apiKey: string): string {
  * - 自动校验 code === 200，非 200 抛出 `Request Moka API Error: {code}, {msg}`
  */
 class MokaRequest {
-	private static processResponse<T>(res: any): T {
+	private static processResponse<T>(res: IMokaResponse<T>): T {
 		if (res && typeof res === 'object' && res.code !== undefined && res.code !== MokaSuccessCode) {
 			throw new Error(`Request Moka API Error: ${res.code}, ${res.msg ?? ''}`);
 		}
@@ -132,17 +132,17 @@ class MokaRequest {
 			}
 
 			// 非 200：尽量从响应体里提取 Moka 业务 code/msg
-			const data: any = response.data;
+			const data = response.data as unknown as Record<string, unknown> | undefined;
 			const code = data?.code ?? response.status;
 			const msg = data?.msg ?? response.statusText ?? 'Request failed';
 			throw new NodeApiError(this.getNode(), (data ?? {}) as JsonObject, {
 				message: `Request Moka API Error: ${code}, ${msg}`,
 			});
 		} catch (error) {
-			if (error instanceof NodeApiError) throw error;
+			if (error instanceof NodeApiError) throw error; // eslint-disable-line @n8n/community-nodes/require-node-api-error
 
 			// axios 自身错误（DNS / 连接拒绝 / 超时 / SSL 等）
-			const axiosErr = error as AxiosError<any>;
+			const axiosErr = error as AxiosError<Record<string, unknown>>;
 			if (axiosErr?.isAxiosError) {
 				const data = axiosErr.response?.data;
 				const code = data?.code ?? axiosErr.response?.status ?? axiosErr.code ?? 'NETWORK_ERROR';
@@ -158,7 +158,9 @@ class MokaRequest {
 					message: error.message,
 				});
 			}
-			throw error;
+			throw new NodeApiError(this.getNode(), {} as JsonObject, {
+				message: String(error),
+			});
 		}
 	}
 }

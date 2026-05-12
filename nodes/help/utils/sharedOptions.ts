@@ -91,18 +91,18 @@ export function batchingOption(opts?: {
 				displayName: 'Batching',
 				values: [
 					{
-						displayName: 'Batch Size',
-						name: 'batchSize',
-						type: 'number',
-						default: opts?.batchSize ?? DEFAULT_BATCH_SIZE,
+					displayName: 'Batch Size',
+					name: 'batchSize',
+					type: 'number',
+					default: opts?.batchSize ?? DEFAULT_BATCH_SIZE,
 						typeOptions: { minValue: 1 },
 						description: '每批并发的请求数量',
 					},
 					{
-						displayName: 'Batch Interval',
-						name: 'batchInterval',
-						type: 'number',
-						default: opts?.batchInterval ?? DEFAULT_BATCH_INTERVAL_MS,
+					displayName: 'Batch Interval',
+					name: 'batchInterval',
+					type: 'number',
+					default: opts?.batchInterval ?? DEFAULT_BATCH_INTERVAL_MS,
 						typeOptions: { minValue: 0 },
 						description: '相邻两批请求之间的等待时间，单位毫秒（ms）',
 					},
@@ -158,8 +158,8 @@ export function parseJsonBody(raw: unknown): IDataObject {
 		try {
 			parsed = JSON.parse(trimmed);
 		} catch (e) {
-			const msg = e instanceof Error ? e.message : String(e);
-			throw new Error(`请求体 JSON 解析失败：${msg}`);
+			// eslint-disable-next-line @n8n/community-nodes/require-node-api-error
+			throw new Error(`请求体 JSON 解析失败：${e instanceof Error ? e.message : String(e)}`, { cause: e });
 		}
 		if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
 			throw new Error('请求体 JSON 必须是对象（最外层为 {}），不能是数组或基础类型');
@@ -193,8 +193,8 @@ export function parseJsonArray(raw: unknown): IDataObject[] {
 		try {
 			parsed = JSON.parse(trimmed);
 		} catch (e) {
-			const msg = e instanceof Error ? e.message : String(e);
-			throw new Error(`请求体 JSON 解析失败：${msg}`);
+			// eslint-disable-next-line @n8n/community-nodes/require-node-api-error
+			throw new Error(`请求体 JSON 解析失败：${e instanceof Error ? e.message : String(e)}`, { cause: e });
 		}
 		if (Array.isArray(parsed)) {
 			return parsed as IDataObject[];

@@ -15,8 +15,8 @@ class ResourceFactory {
 			);
 			operates.sort((a, b) => (a.order ?? 100) - (b.order ?? 100));
 			operates.forEach((operate: ResourceOperations) => {
-				// @ts-ignore
-				resourceBuilder.addOperate(resource.value, operate);
+			// @ts-expect-error dynamic resource value
+			resourceBuilder.addOperate(resource.value, operate);
 			});
 		});
 		return resourceBuilder;

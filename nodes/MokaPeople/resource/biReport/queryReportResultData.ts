@@ -17,6 +17,9 @@ import { timeoutOption } from '../../../help/utils/sharedOptions';
 
 const PATH = '/v1/report/getReportData';
 
+/** BI 报表接口的业务成功 code（区别于其它接口的 0 / 200） */
+const REPORT_SUCCESS_CODES: ReadonlyArray<number> = [1000000];
+
 /**
  * BI 报表表头节点（支持多级 children）。
  */
@@ -132,6 +135,8 @@ const operation: ResourceOperations = {
 			apiCode,
 			itemIndex: index,
 			timeout,
+			// BI 报表接口的成功 code 为 1000000，非 1000000 视为业务错误
+			successCodes: REPORT_SUCCESS_CODES,
 		});
 
 		if (transformData && data && typeof data === 'object' && !Array.isArray(data)) {

@@ -325,7 +325,7 @@ export async function mokaRequest<T = IDataObject>(
 	} catch (error) {
 		// 已经是 n8n 标准错误就原样抛出，保留底层 HTTP 信息
 		if (error instanceof NodeApiError || error instanceof NodeOperationError) {
-			throw error; // eslint-disable-line @n8n/community-nodes/require-node-api-error
+			throw error;
 		}
 
 		// 业务错误：保留完整原始响应到 NodeApiError，方便 UI Details 查看

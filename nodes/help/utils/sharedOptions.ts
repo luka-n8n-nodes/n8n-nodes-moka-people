@@ -157,9 +157,7 @@ export function parseJsonBody(raw: unknown): IDataObject {
 		let parsed: unknown;
 		try {
 			parsed = JSON.parse(trimmed);
-		} catch (e) {
-			// eslint-disable-next-line @n8n/community-nodes/require-node-api-error
-			throw new Error(`请求体 JSON 解析失败：${e instanceof Error ? e.message : String(e)}`, { cause: e });
+		} catch (e) {			throw new Error(`请求体 JSON 解析失败：${e instanceof Error ? e.message : String(e)}`, { cause: e });
 		}
 		if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
 			throw new Error('请求体 JSON 必须是对象（最外层为 {}），不能是数组或基础类型');
@@ -192,9 +190,7 @@ export function parseJsonArray(raw: unknown): IDataObject[] {
 		let parsed: unknown;
 		try {
 			parsed = JSON.parse(trimmed);
-		} catch (e) {
-			// eslint-disable-next-line @n8n/community-nodes/require-node-api-error
-			throw new Error(`请求体 JSON 解析失败：${e instanceof Error ? e.message : String(e)}`, { cause: e });
+		} catch (e) {			throw new Error(`请求体 JSON 解析失败：${e instanceof Error ? e.message : String(e)}`, { cause: e });
 		}
 		if (Array.isArray(parsed)) {
 			return parsed as IDataObject[];

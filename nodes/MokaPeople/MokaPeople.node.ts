@@ -75,7 +75,7 @@ export class MokaPeople implements INodeType {
 					continue;
 				}
 				if (error instanceof NodeApiError || error instanceof NodeOperationError) {
-					throw error; // eslint-disable-line @n8n/community-nodes/require-node-api-error
+					throw error;
 				}
 				throw new NodeApiError(this.getNode(), (error ?? {}) as JsonObject, {
 					message: error instanceof Error ? error.message : String(error),

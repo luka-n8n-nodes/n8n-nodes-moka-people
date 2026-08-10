@@ -35,7 +35,7 @@
     "lint": "n8n-node lint",
     "lint:fix": "n8n-node lint --fix",
     "release": "n8n-node release",
-    "prepublishOnly": "npm run build"
+    "prepublishOnly": "n8n-node prerelease"
   },
   "files": [
     "dist"
@@ -47,15 +47,16 @@
     ],
     "nodes": [
       "dist/nodes/MokaPeople/MokaPeople.node.js"
-    ]
+    ],
+    "strict": false
   },
   "devDependencies": {
-    "@n8n/node-cli": "^0.17.2",
+    "@n8n/node-cli": "*",
     "@types/node": "^20.19.43",
-    "eslint": "^9.39.5",
-    "prettier": "^3.9.6",
-    "release-it": "20.0.1",
-    "typescript": "^5.9.3"
+    "eslint": "9.39.4",
+    "prettier": "3.8.3",
+    "release-it": "20.2.0",
+    "typescript": "5.9.3"
   },
   "dependencies": {
     "form-data": "^4.0.6",

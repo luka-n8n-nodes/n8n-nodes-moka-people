@@ -55,6 +55,8 @@ export interface IMokaRequestOptions {
 	userName?: string;
 	/** 请求超时时间（毫秒）。0 / undefined 表示沿用 n8n httpRequest 默认超时 */
 	timeout?: number;
+	/** HTTP 代理地址，例如 http://user:pass@host:port。空字符串表示不使用代理 */
+	proxy?: string;
 	/**
 	 * 额外的查询参数（会一并参与签名）。
 	 * 注意：**禁止**覆盖框架自动注入的字段（entCode / apiCode / userName / nonce / timestamp / sign），
@@ -116,6 +118,45 @@ function normalizeBaseUrl(baseUrl: string): string {
 
 function buildBasicAuth(apiKey: string): string {
 	return `Basic ${Buffer.from(`${apiKey.trim()}:`).toString('base64')}`;
+}
+
+/**
+ * 把 `http://user:pass@host:port` 解析成 httpRequest 需要的 proxy 对象。
+ * 不把原始地址写进错误信息，避免把账号密码带回节点输出。
+ */
+function parseProxy(proxy: string): NonNullable<IHttpRequestOptions['proxy']> {
+	let parsed: URL;
+	try {
+		parsed = new URL(proxy);
+	} catch {
+		throw new Error('Proxy 不是有效地址，例如 http://myproxy:3128');
+	}
+
+	if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') {
+		throw new Error('Proxy 必须以 http:// 或 https:// 开头，例如 http://myproxy:3128');
+	}
+	if (!parsed.hostname) {
+		throw new Error('Proxy 缺少主机名，例如 http://myproxy:3128');
+	}
+
+	const portText = parsed.port || (parsed.protocol === 'https:' ? '443' : '80');
+	const port = Number(portText);
+	if (!Number.isInteger(port) || port < 1 || port > 65535) {
+		throw new Error('Proxy 端口必须是 1 到 65535 之间的整数');
+	}
+
+	const config: NonNullable<IHttpRequestOptions['proxy']> = {
+		protocol: parsed.protocol.slice(0, -1),
+		host: parsed.hostname,
+		port,
+	};
+	if (parsed.username || parsed.password) {
+		config.auth = {
+			username: decodeURIComponent(parsed.username),
+			password: decodeURIComponent(parsed.password),
+		};
+	}
+	return config;
 }
 
 /**
@@ -208,6 +249,7 @@ function resolvePayload(options: IMokaRequestOptions): IResolvedPayload {
  *   apiCode,
  *   itemIndex: index,
  *   timeout,
+ *   proxy,
  * });
  * ```
  */
@@ -302,7 +344,18 @@ export async function mokaRequest<T = IDataObject>(
 		requestOptions.timeout = options.timeout;
 	}
 
-	// 出于安全考虑：仅打印非敏感的关键字段，绝不 log apiKey / sign / privateKey / body
+	const proxy = options.proxy?.trim() ?? '';
+	if (proxy) {
+		try {
+			requestOptions.proxy = parseProxy(proxy);
+		} catch (error) {
+			throw new NodeOperationError(node, error instanceof Error ? error.message : String(error), {
+				itemIndex,
+			});
+		}
+	}
+
+	// 出于安全考虑：仅打印非敏感的关键字段，绝不 log apiKey / sign / privateKey / body / proxy 地址
 	ctx.logger?.debug?.(
 		`[mokaRequest] ${requestOptions.method} ${options.path} payload=${payload.kind}`,
 		{
@@ -310,6 +363,7 @@ export async function mokaRequest<T = IDataObject>(
 			hasUserName: !!userName,
 			extraQueryKeys: Object.keys(filteredExtraQuery),
 			timeout: requestOptions.timeout,
+			proxy: !!proxy,
 		},
 	);
 

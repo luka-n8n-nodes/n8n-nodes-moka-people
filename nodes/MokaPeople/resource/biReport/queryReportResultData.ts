@@ -1,7 +1,7 @@
 import { IDataObject, INodeProperties } from 'n8n-workflow';
 import { ResourceOperations } from '../../../help/type/IResource';
 import { mokaRequest } from '../../../help/utils/MokaRequest';
-import { timeoutOption } from '../../../help/utils/sharedOptions';
+import { proxyOption, readRequestOptions, timeoutOption } from '../../../help/utils/sharedOptions';
 
 /**
  * 查询报表结果数据接口
@@ -107,6 +107,7 @@ const properties: INodeProperties[] = [
 					'Whether to transform report rows into objects keyed by header titles (e.g. {"性别":"男性","民族":"汉族"})',
 			},
 			timeoutOption(),
+			proxyOption,
 		],
 	},
 ];
@@ -121,11 +122,10 @@ const operation: ResourceOperations = {
 	call: async function (index) {
 		const apiCode = (this.getNodeParameter('apiCode', index, '') as string).trim();
 		const reportId = this.getNodeParameter('reportId', index, 0) as number;
+		const { timeout, proxy } = readRequestOptions.call(this, index);
 		const optionsParam = this.getNodeParameter('options', index, {}) as {
-			timeout?: number;
 			transformData?: boolean;
 		};
-		const timeout = Number(optionsParam.timeout ?? 0) > 0 ? Number(optionsParam.timeout) : 0;
 		const transformData = optionsParam.transformData === true;
 
 		const data = await mokaRequest(this, {
@@ -135,6 +135,7 @@ const operation: ResourceOperations = {
 			apiCode,
 			itemIndex: index,
 			timeout,
+			proxy,
 			// BI 报表接口的成功 code 为 1000000，非 1000000 视为业务错误
 			successCodes: REPORT_SUCCESS_CODES,
 		});

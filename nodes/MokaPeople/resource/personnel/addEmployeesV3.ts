@@ -1,7 +1,12 @@
 import { IDataObject, INodeProperties } from 'n8n-workflow';
 import { ResourceOperations } from '../../../help/type/IResource';
 import { mokaRequest } from '../../../help/utils/MokaRequest';
-import { parseJsonArray, timeoutOption } from '../../../help/utils/sharedOptions';
+import {
+	parseJsonArray,
+	proxyOption,
+	readRequestOptions,
+	timeoutOption,
+} from '../../../help/utils/sharedOptions';
 
 /**
  * 新增员工接口（支持批量附件）
@@ -66,7 +71,7 @@ const properties: INodeProperties[] = [
 		type: 'collection',
 		placeholder: 'Add Option',
 		default: {},
-		options: [timeoutOption()],
+		options: [timeoutOption(), proxyOption],
 	},
 ];
 
@@ -79,8 +84,7 @@ const operation: ResourceOperations = {
 	options: properties,
 	call: async function (index) {
 		const apiCode = (this.getNodeParameter('apiCode', index, '') as string).trim();
-		const optionsParam = this.getNodeParameter('options', index, {}) as { timeout?: number };
-		const timeout = Number(optionsParam.timeout ?? 0) > 0 ? Number(optionsParam.timeout) : 0;
+		const { timeout, proxy } = readRequestOptions.call(this, index);
 
 		const rawData = this.getNodeParameter('data', index, '') as unknown;
 		const dataArray = parseJsonArray(rawData);
@@ -92,6 +96,7 @@ const operation: ResourceOperations = {
 			apiCode,
 			itemIndex: index,
 			timeout,
+			proxy,
 		});
 
 		if (Array.isArray(data)) {

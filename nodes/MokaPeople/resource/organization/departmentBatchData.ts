@@ -4,7 +4,9 @@ import { mokaRequest } from '../../../help/utils/MokaRequest';
 import {
 	batchingOption,
 	paginationOptions,
+	proxyOption,
 	readBatchConfig,
+	readRequestOptions,
 	timeoutOption,
 } from '../../../help/utils/sharedOptions';
 
@@ -148,6 +150,7 @@ const operation: ResourceOperations = {
 			default: {},
 			options: [
 				timeoutOption(),
+				proxyOption,
 				// Batching 仅在勾选 Return All 时出现在 Add Option 下拉里
 				batchingOption({ showWhen: { '/returnAll': [true] } }),
 			],
@@ -156,8 +159,7 @@ const operation: ResourceOperations = {
 	call: async function (index) {
 		const returnAll = this.getNodeParameter('returnAll', index, false) as boolean;
 		const apiCode = (this.getNodeParameter('apiCode', index, '') as string).trim();
-		const optionsParam = this.getNodeParameter('options', index, {}) as { timeout?: number };
-		const timeout = Number(optionsParam.timeout ?? 0) > 0 ? Number(optionsParam.timeout) : 0;
+		const { timeout, proxy } = readRequestOptions.call(this, index);
 
 		const nodeUidList = parseListField(
 			this.getNodeParameter('nodeUidList', index, ''),
@@ -205,6 +207,7 @@ const operation: ResourceOperations = {
 				apiCode,
 				itemIndex: index,
 				timeout,
+				proxy,
 			});
 			return data as unknown as IDepartmentBatchData;
 		};
